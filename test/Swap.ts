@@ -38,6 +38,26 @@ describe('Swap', () => {
         return compareToken(a, b) < 0 ? [a, b] : [b, a]
     }
 
+
+    function GetPrice(PoolInfo){
+        let sqrtPriceX96 = PoolInfo.SqrtX96;
+        let Decimal0 = PoolInfo.Decimal0;
+        let Decimal1 = PoolInfo.Decimal1;
+
+        const buyOneOfToken0 = ((sqrtPriceX96 / 2**96)**2) / (10**Decimal1 / 10**Decimal0).toFixed(Decimal1);
+
+        const buyOneOfToken1 = (1 / buyOneOfToken0).toFixed(Decimal0);
+        console.log("price of token0 in value of token1 : " + buyOneOfToken0.toString());
+        console.log("price of token1 in value of token0 : " + buyOneOfToken1.toString());
+        console.log("");
+        // Convert to wei
+        const buyOneOfToken0Wei =(Math.floor(buyOneOfToken0 * (10**Decimal1))).toLocaleString('fullwide', {useGrouping:false});
+        const buyOneOfToken1Wei =(Math.floor(buyOneOfToken1 * (10**Decimal0))).toLocaleString('fullwide', {useGrouping:false});
+        console.log("price of token0 in value of token1 in lowest decimal : " + buyOneOfToken0Wei);
+        console.log("price of token1 in value of token1 in lowest decimal : " + buyOneOfToken1Wei);
+        console.log("");
+    }
+
    const getMinTick = (tickSpacing: number) => Math.ceil(-887272 / tickSpacing) * tickSpacing
    const getMaxTick = (tickSpacing: number) => Math.floor(887272 / tickSpacing) * tickSpacing
    const getMaxLiquidityPerTick = (tickSpacing: number) =>
@@ -62,7 +82,7 @@ describe('Swap', () => {
     let wallet2;
     let wallet3;
 
-    beforeEach(async () => {
+    before(async () => {
         [admin, wallet1, wallet2, wallet3] = await ethers.getSigners();
         const Factory = await ethers.getContractFactory("UniswapV3Factory");
         factory = await Factory.deploy();
@@ -142,10 +162,10 @@ describe('Swap', () => {
                 amount1Desired: ethers.parseEther("10000"),
                 amount0Min: 0,
                 amount1Min: 0,
-                recipient: wallet1.address,
+                recipient: admin.address,
                 deadline: deadline
-            }])
-            // nonfungiblePositionManager.interface.encodeFunctionData('refundETH'),
+            }]),
+            nonfungiblePositionManager.interface.encodeFunctionData('refundETH'),
         ]);
 
         const path = [usdtAddress, bicAddress];
@@ -153,12 +173,12 @@ describe('Swap', () => {
         const amountOutMin = 0;
         // const amountOutMin = ethers.parseEther("290");
         const to = wallet1.address;
-        await usdt.transfer(wallet1.address, ethers.parseEther("100"));
+        await usdt.transfer(wallet1.address, amountIn);
         console.log('wallet1: ', wallet1.address);
         console.log('eth of wallet1: ', (await ethers.provider.getBalance(wallet1.address)).toString());
         console.log('usdt of wallet1: ', (await usdt.balanceOf(wallet1.address)).toString());
         console.log('bic of wallet1: ', (await bic.balanceOf(wallet1.address)).toString());
-        await usdt.connect(wallet1).approve(routerAddress, ethers.parseEther("100"));
+        await usdt.connect(wallet1).approve(routerAddress, amountIn);
         const tx = await router.connect(wallet1).exactInputSingle({
             tokenIn: usdtAddress,
             tokenOut: bicAddress,
@@ -175,5 +195,85 @@ describe('Swap', () => {
         console.log("bicBalance: ", ethers.formatEther(bicBalance));
         console.log('usdt of wallet1: ', (await usdt.balanceOf(wallet1.address)).toString());
 
+        const position = await nonfungiblePositionManager.positions(1);
+        // console.log('position:', position);
+        // const sqrtPriceX96 = (await pool.slot0())[0];
+        //
+        // const PoolInfo = {
+        //     SqrtX96: new bn(sqrtPriceX96.toString()),
+        //     Decimal0: 18,
+        //     Decimal1: 18
+        // }
+        // GetPrice(PoolInfo);
+    });
+
+    it('increase liquidity', async () => {
+
+        const poolAddress = await factory.getPool(usdtAddress, bicAddress, 3000);
+        console.log('poolAddress:', poolAddress);
+        const pool = await ethers.getContractAt("UniswapV3Pool", poolAddress);
+
+        const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
+       await nonfungiblePositionManager.increaseLiquidity({
+              tokenId: 1,
+              amount0Desired: ethers.parseEther("333"),
+              amount1Desired: ethers.parseEther("333"),
+              amount0Min: 0,
+              amount1Min: 0,
+              deadline: deadline
+       })
+
+        const position = await nonfungiblePositionManager.positions(1);
+        console.log('position:', position);
+
+        const sqrtPriceX96 = (await pool.slot0()).sqrtPriceX96;
+
+        const PoolInfo = {
+            SqrtX96: new bn(sqrtPriceX96.toString()),
+            Decimal0: 18,
+            Decimal1: 18
+        }
+        GetPrice(PoolInfo);
+
+        const path = [usdtAddress, bicAddress];
+        const amountIn = ethers.parseEther("100");
+        const amountOutMin = 0;
+        // const amountOutMin = ethers.parseEther("290");
+        const to = wallet1.address;
+        await usdt.transfer(wallet1.address, amountIn);
+        console.log('wallet1: ', wallet1.address);
+        console.log('eth of wallet1: ', (await ethers.provider.getBalance(wallet1.address)).toString());
+        console.log('usdt of wallet1: ', (await usdt.balanceOf(wallet1.address)).toString());
+        console.log('bic of wallet1: ', (await bic.balanceOf(wallet1.address)).toString());
+        await usdt.connect(wallet1).approve(routerAddress, amountIn);
+        const tx = await router.connect(wallet1).exactInputSingle({
+            tokenIn: usdtAddress,
+            tokenOut: bicAddress,
+            fee: FeeAmount.MEDIUM,
+            recipient: to,
+            deadline: deadline,
+            amountIn: amountIn,
+            amountOutMinimum: amountOutMin,
+            sqrtPriceLimitX96: 0
+        } as any);
+
+        await tx.wait();
+        const bicBalance = await bic.balanceOf(wallet1.address as any);
+        console.log("bicBalance: ", ethers.formatEther(bicBalance));
+        console.log('usdt of wallet1: ', (await usdt.balanceOf(wallet1.address)).toString());
+    });
+
+    it('collect fees', async () => {
+        const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
+        await nonfungiblePositionManager.collect({
+            tokenId: 1,
+            recipient: wallet1.address,
+            amount0Max: ethers.parseEther("1"),
+            amount1Max: ethers.parseEther("1")
+        });
+
+        const bicBalance = await bic.balanceOf(wallet1.address as any);
+        console.log("bicBalance: ", ethers.formatEther(bicBalance));
+        console.log('usdt of wallet1: ', (await usdt.balanceOf(wallet1.address)).toString())
     });
 });
