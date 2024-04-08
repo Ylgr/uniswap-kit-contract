@@ -25,11 +25,26 @@ describe('Swap', () => {
         )
     }
 
+    function compareToken(a: { address: string }, b: { address: string }): -1 | 1 {
+        console.log('a.address: ', a.address);
+        console.log('b.address: ', b.address);
+        return a.address.toLowerCase() < b.address.toLowerCase() ? -1 : 1
+    }
+
+    function sortedTokens(
+        a: { address: string },
+        b: { address: string }
+    ): [typeof a, typeof b] | [typeof b, typeof a] {
+        return compareToken(a, b) < 0 ? [a, b] : [b, a]
+    }
+
    const getMinTick = (tickSpacing: number) => Math.ceil(-887272 / tickSpacing) * tickSpacing
    const getMaxTick = (tickSpacing: number) => Math.floor(887272 / tickSpacing) * tickSpacing
    const getMaxLiquidityPerTick = (tickSpacing: number) =>
        (2n ** 128n - 1n)/(BigInt(getMaxTick(tickSpacing) - getMinTick(tickSpacing) / tickSpacing + 1))
 
+    let token0;
+    let token1;
 
     let usdt;
     let usdtAddress: string;
@@ -55,11 +70,13 @@ describe('Swap', () => {
 
         const USDT = await ethers.getContractFactory("TestERC20");
         usdt = await USDT.deploy();
+        usdt.address = usdt.target;
         usdtAddress = usdt.target;
         console.log('usdtAddress:', usdtAddress);
 
         const BIC = await ethers.getContractFactory("TestERC20");
         bic = await BIC.deploy();
+        bic.address = bic.target;
         bicAddress = bic.target;
         console.log('bicAddress:', bicAddress);
 
@@ -70,7 +87,7 @@ describe('Swap', () => {
         router = await Router.deploy(factoryAddress, weth.target);
         routerAddress = router.target;
 
-
+        [token0, token1] = sortedTokens(usdt, bic);
         const nftDescriptorLibraryFactory = await ethers.getContractFactory('NFTDescriptor')
         const nftDescriptorLibrary = await nftDescriptorLibraryFactory.deploy()
 
@@ -89,7 +106,6 @@ describe('Swap', () => {
         nonfungiblePositionManager = await NonfungiblePositionManager.deploy(factoryAddress, weth.target, nonfungibleTokenPositionDescriptor.target);
         nonfungiblePositionManagerAddress = nonfungiblePositionManager.target;
 
-        await factory.createPool(bicAddress, usdtAddress, 3000);
     });
 
     // it('should able to configure the pool', async () => {
@@ -105,15 +121,20 @@ describe('Swap', () => {
         const poolAddress = await factory.getPool(usdtAddress, bicAddress, 3000);
         console.log('poolAddress:', poolAddress);
         const pool = await ethers.getContractAt("UniswapV3Pool", poolAddress);
-        await pool.initialize(encodePriceSqrt(BigInt(1), BigInt(3)) as any)
-        const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
 
+        // await factory.createPool(bicAddress, usdtAddress, FeeAmount.MEDIUM);
+        // await pool.initialize(encodePriceSqrt(BigInt(1), BigInt(3)) as any) // 1 USD = 3 BIC
+
+        const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
         await usdt.approve(nonfungiblePositionManagerAddress, ethers.parseEther("1000000"));
         await bic.approve(nonfungiblePositionManagerAddress, ethers.parseEther("1000000"));
         await nonfungiblePositionManager.multicall([
+            nonfungiblePositionManager.interface.encodeFunctionData('createAndInitializePoolIfNecessary', [
+                token0.target, token1.target, FeeAmount.MEDIUM, encodePriceSqrt(BigInt(1), BigInt(3)) as any
+            ]),
             nonfungiblePositionManager.interface.encodeFunctionData('mint', [{
-                token0: bicAddress,
-                token1: usdtAddress,
+                token0: token0.address,
+                token1: token1.address,
                 fee: FeeAmount.MEDIUM,
                 tickLower: getMinTick(FeeAmount.MEDIUM),
                 tickUpper: getMaxTick(FeeAmount.MEDIUM),
@@ -130,6 +151,7 @@ describe('Swap', () => {
         const path = [usdtAddress, bicAddress];
         const amountIn = ethers.parseEther("100");
         const amountOutMin = 0;
+        // const amountOutMin = ethers.parseEther("290");
         const to = wallet1.address;
         await usdt.transfer(wallet1.address, ethers.parseEther("100"));
         console.log('wallet1: ', wallet1.address);
