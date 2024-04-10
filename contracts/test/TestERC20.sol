@@ -4,7 +4,7 @@ pragma solidity =0.7.6;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract TestERC20 is ERC20 {
-    constructor() ERC20("TestERC20", "TERC20") {
-        _mint(msg.sender, 1_000_000 * 10 ** 18);
+    constructor() ERC20("Fake Tether", "FAKE USDT") {
+        _mint(msg.sender, 1_000_000_000 * 10 ** 18);
     }
 }
