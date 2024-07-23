@@ -9,6 +9,7 @@ enum FeeAmount {
 }
 
 function encodePriceSqrt(reserve1: string, reserve0: string): BigInt {
+    bn.config({ EXPONENTIAL_AT: 30 })
     return BigInt(
         new bn(reserve1)
             .div(reserve0)
@@ -35,6 +36,9 @@ const getMinTick = (tickSpacing: number) => Math.ceil(-887272 / tickSpacing) * t
 const getMaxTick = (tickSpacing: number) => Math.floor(887272 / tickSpacing) * tickSpacing
 
 const main = async () => {
+    const priceERC20 = 1000;
+    const priceThisIsFineToken = 68;
+
     // const TestERC20 = await ethers.getContractFactory('TestERC20');
     // const testERC20 = await TestERC20.deploy();
     // await run("verify:verify", {
@@ -48,29 +52,33 @@ const main = async () => {
     //     constructorArguments: [],
     // });
 
-    const testERC20 = await ethers.getContractAt('TestERC20', '0x2ab4Cd18057C7a3df47902cD5F28E628A00f17E0');
-    const thisIsFineToken = await ethers.getContractAt('ThisIsFineToken', '0x3c00AFe38b1Db109A0f740368063Db1608E0bb77');
+    // const testERC20 = await ethers.getContractAt('TestERC20', '0x2ab4Cd18057C7a3df47902cD5F28E628A00f17E0');
+    const testERC20 = await ethers.getContractAt('TestERC20', '0x502A99D748452866f66DBE5338d969d402dD7b72');
+    // const thisIsFineToken = await ethers.getContractAt('ThisIsFineToken', '0x3c00AFe38b1Db109A0f740368063Db1608E0bb77');
+    const thisIsFineToken = await ethers.getContractAt('ThisIsFineToken', '0xE8AFce87993Bd475FAf2AeA62e0B008Dc27Ab81A');
     const [token0, token1] = sortedTokens(testERC20 as { target: string }, thisIsFineToken as { target: string });
 
     const nonfungiblePositionManagerAddress = DeployedAddress["NonfungiblePositionManager#NonfungiblePositionManager"];
     const nonfungiblePositionManager = await ethers.getContractAt('NonfungiblePositionManager', nonfungiblePositionManagerAddress);
 
     const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
-    // await token0.approve(nonfungiblePositionManagerAddress, ethers.parseEther("100000"));
-    // await token1.approve(nonfungiblePositionManagerAddress, ethers.parseEther("100000"));
+    await token0.approve(nonfungiblePositionManagerAddress, ethers.parseEther("100000"));
+    await token1.approve(nonfungiblePositionManagerAddress, ethers.parseEther("100000"));
 
+    let price0 = token0.target === testERC20.target ? priceERC20 : priceThisIsFineToken;
+    let price1 = token1.target === testERC20.target ? priceERC20 : priceThisIsFineToken;
     await nonfungiblePositionManager.multicall([
         nonfungiblePositionManager.interface.encodeFunctionData('createAndInitializePoolIfNecessary', [
-            token0.target as string, token1.target as string, FeeAmount.MEDIUM, encodePriceSqrt('1', '3')
+            token0.target as string, token1.target as string, FeeAmount.MEDIUM, encodePriceSqrt(price0.toString(), price1.toString())
         ]),
         nonfungiblePositionManager.interface.encodeFunctionData('mint', [{
-            token0: token0.address,
-            token1: token1.address,
+            token0: token0.target,
+            token1: token1.target,
             fee: FeeAmount.MEDIUM,
             tickLower: getMinTick(FeeAmount.MEDIUM),
             tickUpper: getMaxTick(FeeAmount.MEDIUM),
-            amount0Desired: ethers.parseEther("100000"),
-            amount1Desired: ethers.parseEther("100000"),
+            amount0Desired: ethers.parseEther('100000'),
+            amount1Desired: ethers.parseEther('100000'),
             amount0Min: 0,
             amount1Min: 0,
             recipient: '0xeaBcd21B75349c59a4177E10ed17FBf2955fE697',
@@ -81,6 +89,7 @@ const main = async () => {
 
     console.log('Pool created');
 }
+
 
 main()
     .then(() => process.exit(0))
