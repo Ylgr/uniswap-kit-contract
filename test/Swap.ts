@@ -76,12 +76,13 @@ describe('Swap', () => {
     let factoryAddress: string;
     let nonfungiblePositionManager;
     let nonfungiblePositionManagerAddress: string;
+    let staticOracle;
 
     let admin;
     let wallet1;
     let wallet2;
     let wallet3;
-
+    const CARDINALITY_PER_MINUTE = 10;
     before(async () => {
         [admin, wallet1, wallet2, wallet3] = await ethers.getSigners();
         const Factory = await ethers.getContractFactory("UniswapV3Factory");
@@ -126,6 +127,14 @@ describe('Swap', () => {
         nonfungiblePositionManager = await NonfungiblePositionManager.deploy(factoryAddress, weth.target, nonfungibleTokenPositionDescriptor.target);
         nonfungiblePositionManagerAddress = nonfungiblePositionManager.target;
 
+        const OracleLibraryPlus = await ethers.getContractFactory("OracleLibraryPlus");
+        const oracleLibraryPlus = await OracleLibraryPlus.deploy();
+        const StaticOracle = await ethers.getContractFactory("StaticOracle", {
+            // libraries: {
+            //     OracleLibraryPlus: oracleLibraryPlus.target,
+            // },
+        });
+        staticOracle = await StaticOracle.deploy(factoryAddress, CARDINALITY_PER_MINUTE);
     });
 
     // it('should able to configure the pool', async () => {
@@ -138,9 +147,9 @@ describe('Swap', () => {
     // });
 
     it("should swap USDT to BIC in normal case", async () => {
-        const poolAddress = await factory.getPool(usdtAddress, bicAddress, 3000);
-        console.log('poolAddress:', poolAddress);
-        const pool = await ethers.getContractAt("UniswapV3Pool", poolAddress);
+        // const poolAddress = await factory.getPool(usdtAddress, bicAddress, 3000);
+        // console.log('poolAddress:', poolAddress);
+        // const pool = await ethers.getContractAt("UniswapV3Pool", poolAddress);
 
         // await factory.createPool(bicAddress, usdtAddress, FeeAmount.MEDIUM);
         // await pool.initialize(encodePriceSqrt(BigInt(1), BigInt(3)) as any) // 1 USD = 3 BIC
@@ -205,6 +214,11 @@ describe('Swap', () => {
         //     Decimal1: 18
         // }
         // GetPrice(PoolInfo);
+        // const poolAddress = await factory.getPool(usdtAddress, bicAddress, 3000);
+        // console.log('poolAddress:', poolAddress);
+        // // await ethers.provider.send('evm_increaseTime', [200])
+        // const oraclePrice = await staticOracle.quoteSpecificPoolsWithTimePeriod(ethers.parseEther("100"), usdtAddress, bicAddress, [poolAddress], 2);
+        // console.log('oraclePrice: ', oraclePrice)
     });
 
     it('increase liquidity', async () => {

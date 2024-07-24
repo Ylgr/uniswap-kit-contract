@@ -5,5 +5,6 @@
   "NonfungiblePositionManager#NFTDescriptor": "0xFE177bE6f0b600CD130d255998179987102d47a6",
   "NonfungiblePositionManager#NonfungibleTokenPositionDescriptor": "0x17f77D966a6e117917a3c5D0E182AaB1481348Cf",
   "NonfungiblePositionManager#NonfungiblePositionManager": "0x90c82A41841F21f8b12733CeBf7a97329Bd2706F",
-  "FakeTether#TestERC20": "0x502A99D748452866f66DBE5338d969d402dD7b72"
+  "FakeTether#TestERC20": "0x502A99D748452866f66DBE5338d969d402dD7b72",
+  "StaticOracle#StaticOracle": "0x3E0A114B72cc0148Ca851Ae0f73F9d00744c36A7"
 }
