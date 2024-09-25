@@ -7,5 +7,6 @@
   "NonfungiblePositionManager#NonfungiblePositionManager": "0x90c82A41841F21f8b12733CeBf7a97329Bd2706F",
   "FakeTether#TestERC20": "0x502A99D748452866f66DBE5338d969d402dD7b72",
   "StaticOracle#StaticOracle": "0x3E0A114B72cc0148Ca851Ae0f73F9d00744c36A7",
-  "QuoterV2#QuoterV2": "0x6FBf8D06c25BFF38688e10E4056E40Aa1319459A"
+  "QuoterV2#QuoterV2": "0x6FBf8D06c25BFF38688e10E4056E40Aa1319459A",
+  "TestBicOracleFromEth#TestBicOracleFromEth": "0x47f5cAA3c174dDaf15E45c48AFf2dE4BaB47C78b"
 }
